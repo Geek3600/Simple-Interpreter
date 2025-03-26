@@ -2,13 +2,13 @@ package InterpreterTest
 import org.scalatest.flatspec.AnyFlatSpec
 import scala.util.Random
 import Interpreter._
-
+import Lexer._
 
 class AdderSpec extends AnyFlatSpec 
 {   
     def expression_generator(): Tuple2[String, Int] = {
         var expr: String = ""
-        val get_random_op = () => {if (Random.nextInt(2) == 0) "+" else "-"}
+        val get_random_op  = () => {if (Random.nextInt(2) == 0) "+" else "-"}
         val get_random_num = () => {Random.nextInt(10020)}
         var op: String = "+"
         var result: Int = 0
@@ -44,7 +44,9 @@ class AdderSpec extends AnyFlatSpec
             val expr_gen:Tuple2[String, Int] = expression_generator()
 
             info(s"$i/$numSample")
-            val interpreter = new Interpreter(expr_gen._1)
+
+            val lexer = new Lexer(expr_gen._1)
+            val interpreter = new Interpreter(lexer)
             assert(interpreter.expr() == expr_gen._2)
         }
     }
