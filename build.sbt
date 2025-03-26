@@ -1,10 +1,12 @@
 lazy val root = project
   .in(file("."))
   .settings(
-    name := "scala3-example-project",
-    description := "Example sbt project that compiles using Scala 3",
-    version := "0.1.0",
-    scalaVersion := "3.6.4",
-    scalacOptions ++= Seq("-deprecation"),
-    libraryDependencies += "org.scalameta" %% "munit" % "1.1.0" % Test
+    name := "Simple-Interpreter",
+    description := "A Simple Interpreter For Pascal",
+    version := "0.1.0", // 项目版本
+    scalaVersion := "3.6.4", // scala版本
+    scalacOptions ++= Seq("-deprecation"), // scala编译器选项
+    libraryDependencies += "org.scalameta" %% "munit" % "1.1.0" % Test,
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
+
   )
