@@ -44,12 +44,15 @@ class Interpreter(line:String)
         } 
 
     }
+    
+    // 获取当前整数
+    def term(): Int = {
+        val token: Token = this.current_token
+        this.eat(TOKENS_TYPE.INTEGER)
+        return token._value.toInt
+    }
 
-    // def skip_whitespace() = { // 跳过空格
-    //     if (this.current_char == ' ' && this.current_char != null) {
-    //         this.scan_next_position()
-    //     }
-    // }
+
     def find_integer(): String = {
         var integer: String = ""
         while (this.current_char != '\u0000' && this.current_char.isDigit) {
@@ -59,7 +62,7 @@ class Interpreter(line:String)
         return integer
     }
 
-    // 词法分析器
+    // 词法分析器: 分析一个token的类型，并返回token
     def get_next_token(): Token = {
 
         // 循环是为了跳过任意个空格
@@ -97,39 +100,23 @@ class Interpreter(line:String)
         }
     }
 
-    def expr() = {
-        /*expression -> INTEGER PLUS INTEGER*/
+    // Parser + Interpreter 
+    def expr():Int = {
 
-        // 获取第一个token
         this.current_token = this.get_next_token()
 
-        // 获取左边第一个整数
-        val left:Token = this.current_token
-        // println(left.str())
-        this.eat(TOKENS_TYPE.INTEGER)
-
-        // 获取加号
-        val op:Token = this.current_token
-        //  println(op.str())
-        if (op._type == TOKENS_TYPE.PLUS) {
-            this.eat(TOKENS_TYPE.PLUS)
+        var result: Int = this.term()
+        while (this.current_token._type == TOKENS_TYPE.PLUS || this.current_token._type == TOKENS_TYPE.SUB) {
+            if (this.current_token._type == TOKENS_TYPE.PLUS) {
+                this.eat(TOKENS_TYPE.PLUS)
+                result += this.term()
+            }
+            else {
+                this.eat(TOKENS_TYPE.SUB)
+                result -= this.term()
+            }
         }
-        else {
-            this.eat(TOKENS_TYPE.SUB)
-        }
-
-        // 获取右边第二个整数
-        val right:Token  = this.current_token
-        //  println(right.str())
-        this.eat(TOKENS_TYPE.INTEGER)   
-
-        // 相加
-        if (op._type == TOKENS_TYPE.PLUS) {
-            left._value.toInt + right._value.toInt
-        }
-        else {
-            left._value.toInt - right._value.toInt
-        }
+        return result
     }
 }
 
