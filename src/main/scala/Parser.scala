@@ -7,7 +7,7 @@ class Parser
     // var current_token: Token = null
 
     // // 遇到不支持的token时抛出异常
-    // def unknown_error() = {
+    // def unknownError() = {
     //     throw new Exception("Unknown token in parsing input")
     // }
 
@@ -18,7 +18,7 @@ class Parser
     //         this.current_token = this.get_next_token()
     //     }
     //     else {
-    //         this.unknown_error()
+    //         this.unknownError()
     //     }
     // }
 

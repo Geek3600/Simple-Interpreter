@@ -11,11 +11,16 @@ class Interpreter(lexer:Lexer)
 {
 
     val _lexer: Lexer = lexer
-    var current_token: Token = null
+    var current_token: Token = this._lexer.get_next_token()
 
     // 遇到不支持的token时抛出异常
-    def unknown_error() = {
+    def unknownError() = {
         throw new Exception("Unknown token in parsing input")
+    }
+
+    // 除0错误时抛出异常
+    def DivisionZeroError() = {
+        throw new Exception("Division by zero")
     }
 
     // 判断当前token的类型符合预期，并且获取下一个token
@@ -24,11 +29,12 @@ class Interpreter(lexer:Lexer)
             this.current_token = this._lexer.get_next_token()
         }
         else {
-            this.unknown_error()
+            this.unknownError()
         }
     }
 
     // 获取当前整数
+    // factor产生式规则
     def factor(): Int = {
         val token: Token = this.current_token
         this.eat(TOKENS_TYPE.INTEGER)
@@ -36,22 +42,50 @@ class Interpreter(lexer:Lexer)
     }
 
     // Parser + Interpreter 
-    def expr():Int = {
-
-        this.current_token = this._lexer.get_next_token()
-
+    // term产生式规则
+    def term():Int = {
+        
         var result: Int = this.factor()
-        while (this.current_token._type == TOKENS_TYPE.MUL || this.current_token._type == TOKENS_TYPE.DIV) {
-            if (this.current_token._type == TOKENS_TYPE.MUL) {
+
+        @scala.annotation.tailrec
+        def loop(result: Int):Int =  this.current_token._type match {
+            case TOKENS_TYPE.MUL => 
                 this.eat(TOKENS_TYPE.MUL)
-                result *= this.factor()
-            }
-            else {
+                val new_result:Int = result * this.factor()
+                loop(new_result)
+            case TOKENS_TYPE.DIV =>
                 this.eat(TOKENS_TYPE.DIV)
-                result /= this.factor()
-            }
+                val number: Int = this.factor() match {
+                    case 0 => this.DivisionZeroError()
+                    case n => n
+                }
+                val new_result:Int = result / number
+                loop(new_result)
+            case _ => result
         }
-        return result
+
+        return loop(result)
+    }
+
+    // expr产生式规则
+    def expr(): Int = {
+
+        var result: Int = this.term()
+
+        @scala.annotation.tailrec
+        def loop(result: Int):Int =  this.current_token._type match {
+            case TOKENS_TYPE.PLUS => 
+                this.eat(TOKENS_TYPE.PLUS)
+                val new_result:Int = result + this.term()
+                loop(new_result)
+            case TOKENS_TYPE.SUB =>
+                this.eat(TOKENS_TYPE.SUB)
+                val new_result:Int = result - this.term()
+                loop(new_result)
+            case _ => result
+        }
+
+        return loop(result)
     }
 
 

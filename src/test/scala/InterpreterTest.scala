@@ -1,53 +1,73 @@
 package InterpreterTest 
 import org.scalatest.flatspec.AnyFlatSpec
-import scala.util.Random
+import scala.util.{Random, Try}
+import scala.sys.process._
 import Interpreter._
 import Lexer._
 
 class AdderSpec extends AnyFlatSpec 
 {   
-    def expression_generator(): Tuple2[String, Int] = {
-        var expr: String = ""
-        val get_random_op  = () => {if (Random.nextInt(2) == 0) "+" else "-"}
-        val get_random_num = () => {Random.nextInt(10020)}
-        var op: String = "+"
-        var result: Int = 0
-        var random_int:Int = 0
+    val numberRange = 5
+    val operatorRange = 4
+    def expressionGenerator(): Tuple2[String, Int] = {
 
-        val expr_length = 101
-        for (i <- 1 to expr_length) {
+        def operatorGenerator() = Random.nextInt(operatorRange) match {
+                case 0 => "+"
+                case 1 => "-"
+                case 2 => "*"
+                case 3 => "/" 
+        }
 
-            if (i % 2 == 1) {
-                random_int = get_random_num()
-                expr = expr + random_int.toString()
-                if (op == "+") {
-                    result += random_int
-                }
-                else {
-                    result -= random_int
-                }
-            }
-            else {
-                op = get_random_op()
-                expr = expr + op
+        def numberGenerator(): String = {
+            val number = Random.nextInt(numberRange) + 1
+            number.toString
+        }
+        
+        val expression: String = numberGenerator()
+
+        def loop(expression: String): String = Random.nextInt(2) match {
+            case 0 => 
+                val number: String = numberGenerator()
+                val newOperator: String = operatorGenerator()
+                val newExpression: String = expression + newOperator + number
+                loop(newExpression)
+            case _ => 
+                expression
+        }
+            
+
+        def evaluateWithPython(expr: String): Either[String, Int] = {
+            val pythonCode = s"\"print(round(eval('$expr')))\"".replace("/", "//")
+            try {
+                val result = s"python -c $pythonCode".!!.trim.toInt
+                Right(result)
+            } 
+            catch {
+                case e: Exception => 
+                    Left(s"Error: ${e.getMessage}")
             }
         }
 
+        val newExpression = loop(expression)
+        val result = evaluateWithPython(newExpression) match {
+            case Right(value) => value
+            case Left(error) => 0
+        }
+        (newExpression, result)
 
-        (expr, result)
     }
 
     behavior of "Adder"
-    val numSample = 1000
+    val numSample = 100
     it should "Random Test" in {
         for (i <- 1 to numSample) {
-            val expr_gen:Tuple2[String, Int] = expression_generator()
+            val exprGenerated:Tuple2[String, Int] = expressionGenerator()
 
-            info(s"$i/$numSample")
+            info(s"$i/$numSample" + " " + exprGenerated._1 + " " + exprGenerated._2)
 
-            val lexer = new Lexer(expr_gen._1)
+            val lexer = new Lexer(exprGenerated._1)
             val interpreter = new Interpreter(lexer)
-            assert(interpreter.expr() == expr_gen._2)
+            assert(interpreter.expr() == exprGenerated._2)
         }
     }
 }

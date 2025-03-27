@@ -9,7 +9,7 @@ class Lexer(line:String)
     val text: String = line
     var current_char: Char = this.text(this.pos)
 
-    def unknown_error() = {
+    def unknownError() = {
         throw new Exception("Unknown token in parsing input")
     }
 
@@ -61,7 +61,7 @@ class Lexer(line:String)
                 this.scan_next_position()
                 loop()
             case _ => 
-                unknown_error()
+                unknownError()
                 
         }
         
