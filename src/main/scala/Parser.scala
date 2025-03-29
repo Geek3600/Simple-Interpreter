@@ -3,7 +3,9 @@ import Token._
 import Lexer._
 import AbstractTree._
 
-// 语义分析，构造抽象语法树AST
+// 递归下降语法分析器，构造抽象语法树AST
+// 根据语法规则，也就是产生式，识别语法结构，检查语法是否错误，并产生对应的抽象语法树
+// 将产生式转为实际代码
 class Parser(val lexer: Lexer)
 {
     var currentToken: Token = this.lexer.getNextToken()
@@ -16,10 +18,11 @@ class Parser(val lexer: Lexer)
     // 先判断当前token的类型是否符合预期，是否符合语法规则，然后获取下一个token
     def eat(tokenType: String) = {
         if (this.currentToken.tokenType == tokenType) {
+            // println("syntaxError " + this.currentToken.tokenType + " " + tokenType + " "+ this.currentToken.tokenValue)
             this.currentToken = this.lexer.getNextToken()
         }
         else {
-            // println("syntaxError " + this.currentToken.tokenType + tokenType + this.currentToken.tokenValue)
+            println("syntaxError " + this.currentToken.tokenType + " " + tokenType + " "+ this.currentToken.tokenValue)
             this.syntaxError()
         }
     }
@@ -123,6 +126,7 @@ class Parser(val lexer: Lexer)
         return root
     }
 
+    // 为什么要用链表？因为无法确定有多少条声明语句，所以用链表来存储
     def statementList(): List[ASTNode] = {
         /* statement_list: statement | statement SEMICONLON statement_list */
 
@@ -182,30 +186,104 @@ class Parser(val lexer: Lexer)
         val compoundStatement: ASTNode = this.compoundStatement()
         return BlockNode(declarations, compoundStatement)
     }
+    
+    def formalParameters(): List[ASTNode] = {
+        /* formalParameters : ID (COMMA ID)* COLON type_spec */
+        @scala.annotation.tailrec
+        def loop(paramTokensList: List[Token]): List[Token] = this.currentToken.tokenType match {
+            case TokenType.COMMA =>
+                this.eat(TokenType.COMMA)
+                val newParamTokensList: List[Token] = paramTokensList :+ this.currentToken
+                this.eat(TokenType.IDENTIFIER)
+                loop(newParamTokensList)
+            case _ => paramTokensList
+        }
+
+        val paramTokensList: List[Token] = List(this.currentToken)
+        this.eat(TokenType.IDENTIFIER) // 吞掉第一个参数
+        val newParamTokensList: List[Token] = loop(paramTokensList) // 递归获取所有参数的token
+        this.eat(TokenType.COLON) // 吞掉冒号
+        val typeNode: ASTNode = this.typeDefinition() // 里面已经吞掉了类型关键字
+
+        val parmsNodeList: List[ASTNode] = newParamTokensList.map(paramToken => ParameterNode(VariableNode(paramToken), typeNode))
+        return parmsNodeList
+    }
+
+    def formalParametersList(): List[ASTNode] = {
+        /*  formalParameterList : formalParameters | formalParameters SEMI formalParameterList */
+
+        @scala.annotation.tailrec
+        def loop(paramNodesList: List[ASTNode]): List[ASTNode] = this.currentToken.tokenType match {
+            case TokenType.SEMICONLON =>
+                this.eat(TokenType.SEMICONLON) // 吞掉分号
+                val newParamNodesList: List[ASTNode] = paramNodesList ++ this.formalParameters()
+                loop(newParamNodesList)
+            case _ => paramNodesList
+        }
+
+        this.currentToken.tokenType match {
+            case TokenType.IDENTIFIER =>
+                val formalParameters: List[ASTNode] = this.formalParameters()
+                loop(formalParameters)
+            case _ =>
+                return List[ASTNode]()
+        }
+
+    }
 
     def declarations(): List[ASTNode] = {
-        /* declarations: VAR (variable_declaration SEMICONLON)+ | empty */
+        /* declarations: (VAR (variable_declaration SEMI)+)* | (PROCEDURE ID (LPAREN formal_parameter_list RPAREN)? SEMI block SEMI)* | empty */
         @scala.annotation.tailrec
-        def loop(declarationNodeList: List[ASTNode]): List[ASTNode] = this.currentToken.tokenType match {
+        def loopInter(declarationNodeList: List[ASTNode]): List[ASTNode] = this.currentToken.tokenType match {
             case TokenType.IDENTIFIER =>
                 val newDeclarationNodes: List[ASTNode] = declarationNodeList ++ this.variableDeclaration()
+                this.eat(TokenType.SEMICONLON) // 吞掉分号
+                loopInter(newDeclarationNodes)
+            case TokenType.PROCEDURE => 
+                this.eat(TokenType.PROCEDURE) // 吞掉过程关键字
+                val proceudreName: String = this.currentToken.tokenValue
+                this.eat(TokenType.IDENTIFIER) // 吞掉过程名
+
+                // val formalParameterList: List[ASTNode] = List()
+
+                val formalParamList: List[ASTNode] = this.currentToken.tokenType match { // 判断是否有参数的括号，有括号则进入括号内处理，但是不一定有参数
+                    case TokenType.LPAREN =>
+                        this.eat(TokenType.LPAREN)
+                        val newFormalParamList: List[ASTNode] = this.formalParametersList()
+                        this.eat(TokenType.RPAREN)
+                        newFormalParamList
+                    case _ => null
+                }
+
+                this.eat(TokenType.SEMICONLON)  // 吞掉分号
+                val blockNode: ASTNode = this.block()
+                val newDeclarationNodes: List[ASTNode] = declarationNodeList :+ ProcedureDeclaratioNode(proceudreName, formalParamList, blockNode)
                 this.eat(TokenType.SEMICONLON)
-                loop(newDeclarationNodes)
+                loopInter(newDeclarationNodes)
             case _ => declarationNodeList
         }
 
-        val declarationNodes: List[ASTNode] = List()
-        this.currentToken.tokenType match {
-            case TokenType.VAR =>
-                this.eat(TokenType.VAR)
-                return loop(declarationNodes)
-            case _ => return declarationNodes
+        @scala.annotation.tailrec
+        def loopOuter(declarationNodeList: List[ASTNode]): List[ASTNode] = this.currentToken.tokenType match {
+                case TokenType.VAR =>
+                    this.eat(TokenType.VAR)
+                    val newDecNodes = loopInter(declarationNodeList) // 递归获取同一行的所有变量声明
+                    return loopOuter(newDecNodes)
+                case TokenType.PROCEDURE =>
+                    val newDecNodes = loopInter(declarationNodeList) // 递归获取同一行的所有变量声明
+                    return loopOuter(newDecNodes)
+                case _ => return declarationNodeList
         }
+
+        val declarationNodes: List[ASTNode] = List()
+        return loopOuter(declarationNodes)
     }
 
+    // 为什么要用链表？因为无法确定同一行的变量声明有多少个，所以用链表来存储
     def variableDeclaration(): List[ASTNode] = {
         /* variable_declaration: ID (COMMA ID)* COLON type_spec */
 
+        // 递归获取所有位于同一行的ID标识符节点
         @scala.annotation.tailrec
         def loop(variableNodes: List[ASTNode]): List[ASTNode] = this.currentToken.tokenType match {
             case TokenType.COMMA =>
@@ -218,8 +296,7 @@ class Parser(val lexer: Lexer)
 
         val variableNodes: List[ASTNode] = List(VariableNode(this.currentToken)) // 第一个ID标识符
         this.eat(TokenType.IDENTIFIER) // 吞掉第一个ID标识符
-        val newVariableNodes: List[ASTNode] = variableNodes ++ loop(variableNodes)
-
+        val newVariableNodes: List[ASTNode] = loop(variableNodes) // 将剩下的ID标识符节点加入到链表中
         this.eat(TokenType.COLON) // 吞掉冒号
         val typeNode: ASTNode = this.typeDefinition() // 获取类型节点
         val variableDeclarationNodes: List[ASTNode] = newVariableNodes.map(VarDeclarationNode(_, typeNode))
@@ -241,6 +318,8 @@ class Parser(val lexer: Lexer)
             case _ => this.syntaxError()
         }
     }
+
+
 
     def parse(): ASTNode = {
         val node = this.program() // 从顶部开始解析，递归向下

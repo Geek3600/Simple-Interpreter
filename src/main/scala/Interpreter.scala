@@ -9,13 +9,16 @@ import Lexer._
 import Parser._
 import Token._
 import AbstractTree._
+import Symbol._
+import SemanticAnalyzer._
 
 
 // 解释器
 // 解析抽象语法树
-class Interpreter(val parser: Parser) extends NodeVisitor
+class Interpreter extends NodeVisitor
 {
-    val symbleTable: Map[String, AnyVal] = Map()
+    // 全局变量存储器，存储变量名和他的值
+    val globalMemory: Map[String, AnyVal] = Map()
 
     def divisionZeroError() = {
         throw new Exception("Division by zero")
@@ -81,7 +84,7 @@ class Interpreter(val parser: Parser) extends NodeVisitor
 
         val variableName = newNode.left.asInstanceOf[VariableNode].token.tokenValue // 获取赋值语句左边的变量名
         val v = this.visit(newNode.right) // 获取赋值语句右边的值
-        symbleTable(variableName) = v // 获取赋值语句右边的值，存到符号表中
+        globalMemory(variableName) = v // 获取赋值语句右边的值，存到符号表中
     }
 
     // 从符号表中查找变量的值
@@ -92,7 +95,7 @@ class Interpreter(val parser: Parser) extends NodeVisitor
         }
 
         val variableName = newNode.token.tokenValue // 获取变量名
-        symbleTable.get(variableName) match { // 从符号表中查找变量的值
+        globalMemory.get(variableName) match { // 从符号表中查找变量的值
             case Some(value) => value
             case None => throw new Exception(s"$variableName is an undefined variable")
         }
@@ -132,9 +135,10 @@ class Interpreter(val parser: Parser) extends NodeVisitor
     def visitEmptyOperationNode(node: ASTNode): Unit = {
     }
 
-    def interprete() = {
-        val rootNode = this.parser.parse()
+    def interprete(rootNode: ASTNode) = {
         this.visit(rootNode)
+    }
+    def visitProcedureDeclaratioNode(node: ASTNode): Unit = {
     }
 }
 
@@ -160,12 +164,66 @@ object Main {
         // }
         // val text =  "BEGIN  BEGIN    number := 2;    a := number;    b := 10 * a + 10 * number / 4;    c := a - - b  END;  x := 11;END."
         // println(text)
-        val text = "PROGRAM Part10AST;VAR a, b : INTEGER;y    : REAL;BEGIN {Part10AST}a := 2;b := 10 * a + 10 * a DIV 4;y := 20 / 7 + 3.14; END.  {Part10AST}"
-        val lexer = new Lexer(text)
-        val parser = new Parser(lexer)
-        val interpreter = new Interpreter(parser)
-        interpreter.interprete()
-        interpreter.symbleTable.foreach {case (key, value) => println(s"$key  $value")}
+        
+        // val text = "PROGRAM Part10AST;VAR a, b : INTEGER;y    : REAL;BEGIN {Part10AST}a := 2;b := 10 * a + 10 * a DIV 4;y := 20 / 7 + 3.14; END.  {Part10AST}"
+        // val lexer = new Lexer(text)
+        // val parser = new Parser(lexer)
+        // val interpreter = new Interpreter(parser)
+        // interpreter.interprete()
+        // interpreter.globalMemory.foreach {case (key, value) => println(s"$key  $value")}
 
+        // val symTable = new SymbolTable()
+        // val intType = BuiltInTypeSymbol("INTEGER")
+        // val realType = BuiltInTypeSymbol("REAL")
+        
+        // symTable.defineNewSymbol(intType)
+        // symTable.defineNewSymbol(realType)
+        // println(symTable.str())
+
+        // val varXSymbol = VariableSymbol("x", intType)
+        // symTable.defineNewSymbol(varXSymbol)
+        // println(symTable.str())
+
+        // val varYSymbol = VariableSymbol("y", realType)
+        // symTable.defineNewSymbol(varYSymbol)
+        // println(symTable.str())
+
+        // println(intType.str())
+
+        // val realType = BuiltInTypeSymbol("REAL")
+        // println(realType.str())
+
+        // val valSym1 = VariableSymbol("x", intType)
+        // println(valSym1.str())
+
+        // val valSym2 = VariableSymbol("y", realType)
+        // println(valSym2.str())
+ 
+        val text =  "program Main;var x, y: real;procedure Alpha(a : integer);var y : integer;begin end;begin { Main } end.  { Main }"
+        val lexer = Lexer(text)
+        val parser = Parser(lexer)
+        // val interpreter = Interpreter()
+        val astTree = parser.parse()
+
+        val semanticAnalyzer = SemanticAnalyzer()
+        semanticAnalyzer.visit(astTree)
+        // interpreter.interprete(astTree)
+        // println(symbolBuilder.scopeSymbolTable.str())
+        // interpreter.globalMemory.foreach {case (key, value) => println(s"$key  $value")}
+
+        // val intType = BuiltInTypeSymbol("INTEGER")
+        // val realType = BuiltInTypeSymbol("REAL")
+        // println(intType.toString())
+        // println(realType.toString())
+
+        // val varXSymbol = VariableSymbol("x", intType)
+        // println(varXSymbol.toString())
+
+        // val symTab = new SymbolTable()
+        // val intType = BuiltInTypeSymbol("INTEGER")
+        // val x = VariableSymbol("x", intType)
+        // symTab.defineNewSymbol(intType)
+        // symTab.defineNewSymbol(x)
+        // println(symTab.str())
     }
 }

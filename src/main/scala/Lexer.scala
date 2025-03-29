@@ -2,7 +2,8 @@ package Lexer
 
 import Token._
 
-// 词法分析器，传入待解析的表达式
+// 词法分析器
+// 词法分析器的作用是将输入的字符串划分成一个个有效的token，并返回有效的token，无效的字符会被忽略（如空格，注释）
 class Lexer(val text:String)
 {   
     var pos: Int = 0
@@ -69,7 +70,7 @@ class Lexer(val text:String)
                     loop()
                 case _ => 
                     // println(identifier)
-                    identifier match {
+                    identifier.toUpperCase match {
                         case "BEGIN"   => Token(TokenType.BEGIN, identifier)
                         case "END"     => Token(TokenType.END, identifier)
                         case "PROGRAM" => Token(TokenType.PROGRAM, identifier)
@@ -77,6 +78,7 @@ class Lexer(val text:String)
                         case "REAL" => Token(TokenType.REAL, identifier)
                         case "INTEGER" => Token(TokenType.INTEGER, identifier)
                         case "DIV" => Token(TokenType.INTEGER_DIV, identifier)
+                        case "PROCEDURE" => Token(TokenType.PROCEDURE, identifier)
                         case _         => Token(TokenType.IDENTIFIER, identifier)
                 }
             }

@@ -26,6 +26,7 @@ object TokenType
     val INTEGER_CONSTANT: String = "INTEGER_CONSTANT"
     val REAL_CONSTANT: String = "FLOAT_CONSTANT"
     val REAL: String = "REAL"
+    val PROCEDURE: String = "PROCEDURE"
 }
 
 // token类

@@ -43,7 +43,7 @@ class NumberNode(val token: Token) extends ASTNode
 
 class UnaryOperationNode(val operator: Token, val right: ASTNode) extends ASTNode
 
-
+// 为什么要用链表？因为无法确定同一行的变量声明有多少个，所以用链表来存储
 class CompoundStatementNode(val children: List[ASTNode]) extends ASTNode
 
 class AssignStatementNode(val left: ASTNode, val assign: Token, val right: ASTNode) extends ASTNode
@@ -56,6 +56,13 @@ class ProgramNode(val name: String, val block: ASTNode) extends ASTNode
 
 class VarDeclarationNode(val varNode: ASTNode, val typeNode: ASTNode) extends ASTNode
 
+// 为什么要用链表？因为无法确定同一行的变量声明有多少个，所以用链表来存储
 class BlockNode(val declarations: List[ASTNode], val compoundStatement: ASTNode) extends ASTNode
 
 class TypeNode(val token: Token) extends ASTNode
+
+
+class ParameterNode(val varNode: ASTNode, val typeNode: ASTNode) extends ASTNode
+
+// 不确定参数有几个，所以用链表来存储
+class ProcedureDeclaratioNode(val name: String, val parameters: List[ASTNode], val block: ASTNode) extends ASTNode
