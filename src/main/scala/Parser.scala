@@ -2,6 +2,7 @@ package Parser
 import Token._
 import Lexer._
 import AbstractTree._
+import Error._
 
 // 递归下降语法分析器，构造抽象语法树AST
 // 根据语法规则，也就是产生式，识别语法结构，检查语法是否错误，并产生对应的抽象语法树
@@ -10,20 +11,22 @@ class Parser(val lexer: Lexer)
 {
     var currentToken: Token = this.lexer.getNextToken()
 
-    def syntaxError() = {
-        throw new Exception("Syntax error")
+    def parserError(errorCode: String, token: Token) = {
+        val errorString = "%s -> %s".format(errorCode, token)
+        val parserError = new ParserError(errorCode, token, errorString)
+        throw new Exception(parserError.errorMessage)
     }
+
+
     // 除0错误时抛出异常
 
     // 先判断当前token的类型是否符合预期，是否符合语法规则，然后获取下一个token
     def eat(tokenType: String) = {
         if (this.currentToken.tokenType == tokenType) {
-            // println("syntaxError " + this.currentToken.tokenType + " " + tokenType + " "+ this.currentToken.tokenValue)
             this.currentToken = this.lexer.getNextToken()
         }
         else {
-            println("syntaxError " + this.currentToken.tokenType + " " + tokenType + " "+ this.currentToken.tokenValue)
-            this.syntaxError()
+            this.parserError(ErrorCode.UNKNOWN_TOKEN, this.currentToken)
         }
     }
 
@@ -51,7 +54,7 @@ class Parser(val lexer: Lexer)
                 return UnaryOperationNode(Token(TokenType.SUB, "-"), this.factor())
             case TokenType.IDENTIFIER =>
                 return this.variable()
-            case _ => this.syntaxError()
+            case _ => this.parserError(ErrorCode.PARSER_FACTOR_ERROR, this.currentToken)
         }
     }
 
@@ -231,6 +234,7 @@ class Parser(val lexer: Lexer)
 
     }
 
+    // TODO::简化代码逻辑，循环展开
     def declarations(): List[ASTNode] = {
         /* declarations: (VAR (variable_declaration SEMI)+)* | (PROCEDURE ID (LPAREN formal_parameter_list RPAREN)? SEMI block SEMI)* | empty */
         @scala.annotation.tailrec
@@ -257,7 +261,7 @@ class Parser(val lexer: Lexer)
 
                 this.eat(TokenType.SEMICONLON)  // 吞掉分号
                 val blockNode: ASTNode = this.block()
-                val newDeclarationNodes: List[ASTNode] = declarationNodeList :+ ProcedureDeclaratioNode(proceudreName, formalParamList, blockNode)
+                val newDeclarationNodes: List[ASTNode] = declarationNodeList :+ ProcedureDeclarationNode(proceudreName, formalParamList, blockNode)
                 this.eat(TokenType.SEMICONLON)
                 loopInter(newDeclarationNodes)
             case _ => declarationNodeList
@@ -315,7 +319,7 @@ class Parser(val lexer: Lexer)
             case TokenType.REAL =>
                 this.eat(TokenType.REAL)
                 return TypeNode(token)
-            case _ => this.syntaxError()
+            case _ => this.parserError(ErrorCode.PARSER_END_ERROR, this.currentToken)
         }
     }
 
@@ -327,7 +331,7 @@ class Parser(val lexer: Lexer)
         // 解析完之后检查是否还有剩余的token，如果有则抛出异常
         this.currentToken.tokenType match {
             case TokenType.EOF => node  // 返回AST的根节点
-            case _ => this.syntaxError()
+            case _ => this.parserError(ErrorCode.PARSER_END_ERROR, this.currentToken)
         }
     }
 }

@@ -75,16 +75,23 @@ class ScopedSymbolTable(val scopeName: String, val scopeLevel: Int, val fatherSc
 
     // 定义新的符号，将符号名和符号类存入符号表中
     def defineNewSymbol(symbol: Symbol) = {
-        println("Define new symbol: " + symbol.symbolName)
+        println("Define new symbol: %s (Scope name: %s)".format(symbol.symbolName, this.scopeName))
         this.symbolTable(symbol.symbolName) = symbol
     }
 
     // 根据符号名查找符号表
-    def lookupSymbol(symbolName: String): Symbol = {
-        println("Lookup symbol: " + symbolName)
-        this.symbolTable.get(symbolName) match {
+    def lookupSymbol(symbolName: String, currentScopeOnly: Boolean = false): Symbol = {
+        println("Lookup symbol: %s (Scope name: %s)".format(symbolName, this.scopeName))
+        this.symbolTable.get(symbolName) match { // 查找当前作用域的符号表
             case Some(symbol) => symbol
-            case None => null
+            case None => 
+                if (currentScopeOnly) null
+                else {
+                    this.fatherScope match { // 若当前作用域不存在，则递归向上查找父作用域的符号表
+                        case null => null
+                        case _    => this.fatherScope.lookupSymbol(symbolName, false)
+                    }
+                }
         }
     }
 }

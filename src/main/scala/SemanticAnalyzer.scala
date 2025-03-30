@@ -4,11 +4,20 @@ import Lexer._
 import Token._
 import scala.collection.mutable.Map
 import Symbol._
+import Error._
+
 // 符号表构造器，通过遍历AST，构造符号表
 class SemanticAnalyzer extends NodeVisitor
 {
     // val globalScopeSymbolTable = new ScopedSymbolTable(scopeName = "global", scopeLevel = 1)
     var currentScopeSymbolTable: ScopedSymbolTable = null
+
+    def semanticError(errorCode: String, token: Token): Unit = {
+        println(token.tokenType + " " + token.tokenValue)
+        val errorString = "%s -> %s".format(errorCode, token)
+        val semanticError = new SemanticError(errorCode, token, errorString)
+        throw new Exception(semanticError.errorMessage)
+    }
 
     def visitBlockNode(node: ASTNode): Unit = {
         val newNode = node match {
@@ -68,6 +77,7 @@ class SemanticAnalyzer extends NodeVisitor
     def visitEmptyOperationNode(node: ASTNode): Unit = {
     }
 
+    //TODO:: 把各个visit中的newNode改成对应类型的Node名称
     def visitVarDeclarationNode(node: ASTNode): Unit = {
         val newNode = node match {
             case varDecl: VarDeclarationNode => varDecl
@@ -83,8 +93,8 @@ class SemanticAnalyzer extends NodeVisitor
         val varName = newNode.varNode.asInstanceOf[VariableNode].token.tokenValue
         
         // 检查变量名是否已经存在，如果存在，则重复定义
-        this.currentScopeSymbolTable.lookupSymbol(varName) match {
-            case symbol: Symbol => throw new Exception(s"Variable $varName already defined")
+        this.currentScopeSymbolTable.lookupSymbol(varName, currentScopeOnly = true) match {
+            case symbol: Symbol => this.semanticError(ErrorCode.DUPLICATE_ID, newNode.varNode.asInstanceOf[VariableNode].token)
             case null => ()
         }
 
@@ -108,14 +118,14 @@ class SemanticAnalyzer extends NodeVisitor
     }
 
     def visitVariableNode(node: ASTNode): Unit = {
-        val newNode = node match {
+        val variableNode = node match {
             case variable: VariableNode => variable
             case _ => throw new Exception("Unknown node type")
         }
         // 从符号表中查找变量，检查其是否存在
-        this.currentScopeSymbolTable.lookupSymbol(newNode.token.tokenValue) match {
+        this.currentScopeSymbolTable.lookupSymbol(variableNode.token.tokenValue, currentScopeOnly = false) match {
             case symbol: Symbol => ()
-            case null => throw new Exception(s"Variable ${newNode.token.tokenValue} not defined")
+            case null => this.semanticError(ErrorCode.ID_NOT_FOUND, variableNode.token)
         }
     }
 
@@ -124,9 +134,9 @@ class SemanticAnalyzer extends NodeVisitor
     // 创建过程符号，将过程符号保存到当前scope的符号表中
     // 创建一个更深scope的符号表，把它作为当前的scope
     // 将过程参数保存到该符号表中
-    def visitProcedureDeclaratioNode(node: ASTNode): Unit = {
+    def visitProcedureDeclarationNode(node: ASTNode): Unit = {
         val newNode = node match {
-            case procedure: ProcedureDeclaratioNode => procedure
+            case procedure: ProcedureDeclarationNode => procedure
             case _ => throw new Exception("Unknown node type")
         }
 
@@ -150,11 +160,10 @@ class SemanticAnalyzer extends NodeVisitor
 
         // 将全部参数节点，提取他们的符号，存入符号表中
         for (parameter <- newNode.parameters) {
-            // TODO 检查参数类型是否存在， 感觉有问题
             val newParam = parameter.asInstanceOf[ParameterNode]
-            val paramType = this.currentScopeSymbolTable.lookupSymbol(newParam.typeNode.asInstanceOf[TypeNode].token.tokenValue)
+            val paramTypeSymbol = this.currentScopeSymbolTable.lookupSymbol(newParam.typeNode.asInstanceOf[TypeNode].token.tokenValue, currentScopeOnly = false)
             val paramName: String = newParam.varNode.asInstanceOf[VariableNode].token.tokenValue
-            val paramSymbol = VariableSymbol(paramName, paramType)
+            val paramSymbol = VariableSymbol(paramName, paramTypeSymbol)
             this.currentScopeSymbolTable.defineNewSymbol(paramSymbol)
             procedureSymbol.addParameter(paramSymbol)
         }
@@ -163,5 +172,10 @@ class SemanticAnalyzer extends NodeVisitor
         println(procedureScopeSymbolTable.str())
         this.currentScopeSymbolTable = this.currentScopeSymbolTable.fatherScope
         println("LEAVE scope: %s".format(procedureName))
+    }
+
+
+    def log(msg: String): Unit = {
+        println(msg)
     }
 }

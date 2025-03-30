@@ -11,136 +11,138 @@ import Token._
 import AbstractTree._
 import Symbol._
 import SemanticAnalyzer._
+import SourceToSourceCompiler._
+import Error._
 
 
 // 解释器
 // 解析抽象语法树
-class Interpreter extends NodeVisitor
-{
-    // 全局变量存储器，存储变量名和他的值
-    val globalMemory: Map[String, AnyVal] = Map()
+// class Interpreter extends NodeVisitor
+// {
+//     // 全局变量存储器，存储变量名和他的值
+//     val globalMemory: Map[String, AnyVal] = Map()
 
-    def divisionZeroError() = {
-        throw new Exception("Division by zero")
-    }
+//     def divisionZeroError() = {
+//         throw new Exception("Division by zero")
+//     }
 
-    def visitBinaryOperationNode(node: ASTNode): AnyVal = {
+//     def visitBinaryOperationNode(node: ASTNode): AnyVal = {
         
-        val newNode = node match {
-            case bin: BinaryOperationNode => bin
-            case _ => throw new Exception("Unknown node type")
-        }
-        // println(newNode.operator.tokenType)
-        newNode.operator.tokenType match {
-            case TokenType.PLUS => this.visit(newNode.left) + this.visit(newNode.right)
-            case TokenType.SUB => this.visit(newNode.left) - this.visit(newNode.right)
-            case TokenType.MUL => this.visit(newNode.left) * this.visit(newNode.right)
-            case TokenType.INTEGER_DIV => this.visit(newNode.left) / this.visit(newNode.right)
-            case TokenType.FLOAT_DIV => this.visit(newNode.left) / this.visit(newNode.right)
-            case _ => 0
-        }
-    }
+//         val newNode = node match {
+//             case bin: BinaryOperationNode => bin
+//             case _ => throw new Exception("Unknown node type")
+//         }
+//         // println(newNode.operator.tokenType)
+//         newNode.operator.tokenType match {
+//             case TokenType.PLUS => this.visit(newNode.left) + this.visit(newNode.right)
+//             case TokenType.SUB => this.visit(newNode.left) - this.visit(newNode.right)
+//             case TokenType.MUL => this.visit(newNode.left) * this.visit(newNode.right)
+//             case TokenType.INTEGER_DIV => this.visit(newNode.left) / this.visit(newNode.right)
+//             case TokenType.FLOAT_DIV => this.visit(newNode.left) / this.visit(newNode.right)
+//             case _ => 0
+//         }
+//     }
 
-    def visitNumberNode(node: ASTNode): AnyVal = {
+//     def visitNumberNode(node: ASTNode): AnyVal = {
 
-        val newNode = node match {
-            case num: NumberNode => num
-            case _ => throw new Exception("Unknown node type")
-        }
-        newNode.value
-    }
+//         val newNode = node match {
+//             case num: NumberNode => num
+//             case _ => throw new Exception("Unknown node type")
+//         }
+//         newNode.value
+//     }
 
     
-    def visitUnaryOperationNode(node: ASTNode): AnyVal = {
+//     def visitUnaryOperationNode(node: ASTNode): AnyVal = {
 
-        val newNode = node match {
-            case unary: UnaryOperationNode => unary
-            case _ => throw new Exception("Unknown node type")
-        }
+//         val newNode = node match {
+//             case unary: UnaryOperationNode => unary
+//             case _ => throw new Exception("Unknown node type")
+//         }
 
-        newNode.operator.tokenType match {
-            case TokenType.PLUS => this.visit(newNode.right)
-            case TokenType.SUB  => -this.visit(newNode.right)
-            case _ => 0
-        }
-    }
+//         newNode.operator.tokenType match {
+//             case TokenType.PLUS => this.visit(newNode.right)
+//             case TokenType.SUB  => -this.visit(newNode.right)
+//             case _ => 0
+//         }
+//     }
 
-    def visitCompoundStatementNode(node: ASTNode): Unit = {
+//     def visitCompoundStatementNode(node: ASTNode): Unit = {
         
-        val newNode = node match {
-            case compound: CompoundStatementNode => compound
-            case _ => throw new Exception("Unknown node type")
-        }
+//         val newNode = node match {
+//             case compound: CompoundStatementNode => compound
+//             case _ => throw new Exception("Unknown node type")
+//         }
 
-        newNode.children.foreach(this.visit(_))
-    }
+//         newNode.children.foreach(this.visit(_))
+//     }
 
-    // 变量赋值，将变量名和值存入符号表中
-    def visitAssignStatementNode(node: ASTNode): Unit = {
-        val newNode = node match {
-            case assign: AssignStatementNode => assign
-            case _ => throw new Exception("Unknown node type")
-        }
+//     // 变量赋值，将变量名和值存入符号表中
+//     def visitAssignStatementNode(node: ASTNode): Unit = {
+//         val newNode = node match {
+//             case assign: AssignStatementNode => assign
+//             case _ => throw new Exception("Unknown node type")
+//         }
 
-        val variableName = newNode.left.asInstanceOf[VariableNode].token.tokenValue // 获取赋值语句左边的变量名
-        val v = this.visit(newNode.right) // 获取赋值语句右边的值
-        globalMemory(variableName) = v // 获取赋值语句右边的值，存到符号表中
-    }
+//         val variableName = newNode.left.asInstanceOf[VariableNode].token.tokenValue // 获取赋值语句左边的变量名
+//         val v = this.visit(newNode.right) // 获取赋值语句右边的值
+//         globalMemory(variableName) = v // 获取赋值语句右边的值，存到符号表中
+//     }
 
-    // 从符号表中查找变量的值
-    def visitVariableNode(node: ASTNode): AnyVal = {
-        val newNode = node match {
-            case variable: VariableNode => variable
-            case _ => throw new Exception("Unknown node type")
-        }
+//     // 从符号表中查找变量的值
+//     def visitVariableNode(node: ASTNode): AnyVal = {
+//         val newNode = node match {
+//             case variable: VariableNode => variable
+//             case _ => throw new Exception("Unknown node type")
+//         }
 
-        val variableName = newNode.token.tokenValue // 获取变量名
-        globalMemory.get(variableName) match { // 从符号表中查找变量的值
-            case Some(value) => value
-            case None => throw new Exception(s"$variableName is an undefined variable")
-        }
-    }
+//         val variableName = newNode.token.tokenValue // 获取变量名
+//         globalMemory.get(variableName) match { // 从符号表中查找变量的值
+//             case Some(value) => value
+//             case None => throw new Exception(s"$variableName is an undefined variable")
+//         }
+//     }
     
-    def visitProgramNode(node: ASTNode): Unit = {
-        val newNode = node match {
-            case program: ProgramNode => program
-            case _ => throw new Exception("Unknown node type")
-        }
-        this.visit(newNode.block)
-    }
+//     def visitProgramNode(node: ASTNode): Unit = {
+//         val newNode = node match {
+//             case program: ProgramNode => program
+//             case _ => throw new Exception("Unknown node type")
+//         }
+//         this.visit(newNode.block)
+//     }
 
-    def visitBlockNode(node: ASTNode): Unit = {
-        val newNode = node match {
-            case block: BlockNode => block
-            case _ => throw new Exception("Unknown node type")
-        }
-        newNode.declarations.foreach(this.visit(_))
-        this.visit(newNode.compoundStatement)
-    }
+//     def visitBlockNode(node: ASTNode): Unit = {
+//         val newNode = node match {
+//             case block: BlockNode => block
+//             case _ => throw new Exception("Unknown node type")
+//         }
+//         newNode.declarations.foreach(this.visit(_))
+//         this.visit(newNode.compoundStatement)
+//     }
 
-    def visitVarDeclarationNode(node: ASTNode): Unit = {
-        val newNode = node match {
-            case varDecl: VarDeclarationNode => varDecl
-            case _ => throw new Exception("Unknown node type")
-        }
-    }
+//     def visitVarDeclarationNode(node: ASTNode): Unit = {
+//         val newNode = node match {
+//             case varDecl: VarDeclarationNode => varDecl
+//             case _ => throw new Exception("Unknown node type")
+//         }
+//     }
 
-    def visitTypeNode(node: ASTNode): Unit = {
-        val newNode = node match {
-            case typeNode: TypeNode => typeNode
-            case _ => throw new Exception("Unknown node type")
-        }
-    }
+//     def visitTypeNode(node: ASTNode): Unit = {
+//         val newNode = node match {
+//             case typeNode: TypeNode => typeNode
+//             case _ => throw new Exception("Unknown node type")
+//         }
+//     }
 
-    def visitEmptyOperationNode(node: ASTNode): Unit = {
-    }
+//     def visitEmptyOperationNode(node: ASTNode): Unit = {
+//     }
 
-    def interprete(rootNode: ASTNode) = {
-        this.visit(rootNode)
-    }
-    def visitProcedureDeclaratioNode(node: ASTNode): Unit = {
-    }
-}
+//     def interprete(rootNode: ASTNode) = {
+//         this.visit(rootNode)
+//     }
+//     def visitProcedureDeclarationNode(node: ASTNode): Unit = {
+//     }
+// }
 
 
 object Main {
@@ -198,15 +200,22 @@ object Main {
 
         // val valSym2 = VariableSymbol("y", realType)
         // println(valSym2.str())
- 
-        val text =  "program Main;var x, y: real;procedure Alpha(a : integer);var y : integer;begin end;begin { Main } end.  { Main }"
+ //====================
+        val text =  "program Main;var a,b : integer;begin { Main }a := b;  { semantic error }end.  { Main }"
         val lexer = Lexer(text)
         val parser = Parser(lexer)
         // val interpreter = Interpreter()
         val astTree = parser.parse()
-
         val semanticAnalyzer = SemanticAnalyzer()
         semanticAnalyzer.visit(astTree)
+        // interpreter.interprete(astTree)
+        // val sourceToSourceCompiler = SourceToSourceCompiler()
+        // sourceToSourceCompiler.visit(astTree, isS2SCompile = true)
+        // println(sourceToSourceCompiler.output)
+//=====================
+
+        // val semanticAnalyzer = SemanticAnalyzer()
+        // semanticAnalyzer.visit(astTree)
         // interpreter.interprete(astTree)
         // println(symbolBuilder.scopeSymbolTable.str())
         // interpreter.globalMemory.foreach {case (key, value) => println(s"$key  $value")}
@@ -225,5 +234,10 @@ object Main {
         // symTab.defineNewSymbol(intType)
         // symTab.defineNewSymbol(x)
         // println(symTab.str())
+
+        // val errorCode = new ErrorCode()
+        // println(errorCode.UNKNOWN_TOKEN)
+        // println(errorCode.ID_NOT_FOUND)
+        // println(errorCode.DUPLICATE_ID)
     }
 }
