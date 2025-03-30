@@ -6,6 +6,9 @@ import scala.collection.mutable.Map
 import Symbol._
 import Error._
 
+object SemanticAnalyzerLog {
+    var isLogEnabled: Boolean = false
+}
 // 符号表构造器，通过遍历AST，构造符号表
 class SemanticAnalyzer extends NodeVisitor
 {
@@ -13,7 +16,7 @@ class SemanticAnalyzer extends NodeVisitor
     var currentScopeSymbolTable: ScopedSymbolTable = null
 
     def semanticError(errorCode: String, token: Token): Unit = {
-        println(token.tokenType + " " + token.tokenValue)
+        // println(token.tokenType + " " + token.tokenValue)
         val errorString = "%s -> %s".format(errorCode, token)
         val semanticError = new SemanticError(errorCode, token, errorString)
         throw new Exception(semanticError.errorMessage)
@@ -34,15 +37,15 @@ class SemanticAnalyzer extends NodeVisitor
             case _ => throw new Exception("Unknown node type")
         }
 
-        println("ENTER scope: global")
+        this.log("ENTER scope: global")
         val globalScopeSymbolTable = new ScopedSymbolTable("global", 1, this.currentScopeSymbolTable) // 创建全局符号表
         this.currentScopeSymbolTable = globalScopeSymbolTable       // 将当前符号表设置为全局符号表
         this.visit(newNode.block)
 
-        println(globalScopeSymbolTable.str())
+        this.log(globalScopeSymbolTable.str())
 
         this.currentScopeSymbolTable = this.currentScopeSymbolTable.fatherScope // 为什么要回退？
-        println("LEAVE scope: global")
+        this.log("LEAVE scope: global")
     }
 
     def visitBinaryOperationNode(node: ASTNode): Unit = {
@@ -145,10 +148,11 @@ class SemanticAnalyzer extends NodeVisitor
 
         // 创建过程符号
         val procedureSymbol = ProcedureSymbol(procedureName)
+        procedureSymbol.blockNode = newNode.block // 将过程体节点保存到过程符号中，方便解释器找到过程体
 
         // 将过程符号存入符号表中
         this.currentScopeSymbolTable.defineNewSymbol(procedureSymbol)
-        println("Enter scope: %s".format(procedureName))
+        this.log("Enter scope: %s".format(procedureName))
 
         val procedureScopeSymbolTable = new ScopedSymbolTable(
             procedureName, 
@@ -159,7 +163,7 @@ class SemanticAnalyzer extends NodeVisitor
         this.currentScopeSymbolTable = procedureScopeSymbolTable
 
         // 将全部参数节点，提取他们的符号，存入符号表中
-        for (parameter <- newNode.parameters) {
+        for (parameter <- newNode.formalParameters) {
             val newParam = parameter.asInstanceOf[ParameterNode]
             val paramTypeSymbol = this.currentScopeSymbolTable.lookupSymbol(newParam.typeNode.asInstanceOf[TypeNode].token.tokenValue, currentScopeOnly = false)
             val paramName: String = newParam.varNode.asInstanceOf[VariableNode].token.tokenValue
@@ -169,13 +173,25 @@ class SemanticAnalyzer extends NodeVisitor
         }
 
         this.visit(newNode.block)
-        println(procedureScopeSymbolTable.str())
+        this.log(procedureScopeSymbolTable.str())
         this.currentScopeSymbolTable = this.currentScopeSymbolTable.fatherScope
-        println("LEAVE scope: %s".format(procedureName))
+        this.log("LEAVE scope: %s".format(procedureName))
+        
+    }
+
+    def visitProcedureCallNode(node: ASTNode): Unit = {
+        val procedureCallNode = node match {
+            case procedureCall: ProcedureCallNode => procedureCall
+            case _ => throw new Exception("Unknown node type")
+        }
+
+        procedureCallNode.actualParameters.foreach(this.visit(_)) // 递归访问参数节点，计入符号表
+
+        // 找出过程中的符号，里面有参数
+        val procedureSymbol = this.currentScopeSymbolTable.lookupSymbol(procedureCallNode.procedureName) 
+        procedureCallNode.procedureSymbol = procedureSymbol.asInstanceOf[ProcedureSymbol]
     }
 
 
-    def log(msg: String): Unit = {
-        println(msg)
-    }
+    def log(msg: String) = if (SemanticAnalyzerLog.isLogEnabled) println(msg)
 }

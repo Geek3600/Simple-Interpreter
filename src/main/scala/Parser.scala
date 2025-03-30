@@ -151,10 +151,13 @@ class Parser(val lexer: Lexer)
 
     // 语句产生式
     def statement(): ASTNode = {
-        /* statement: compound_statement | assignment_statement | empty */
+        /* statement: compound_statement | assignment_statement | proccall_statement | empty */
         this.currentToken.tokenType match {
             case TokenType.BEGIN => this.compoundStatement()
-            case TokenType.IDENTIFIER => this.assignmentStatement()
+            case TokenType.IDENTIFIER => this.lexer.currentChar match {
+                case '(' => this.procedureCall()
+                case _ => this.assignmentStatement()
+            }
             case _ => this.empty()
         }
     }
@@ -323,7 +326,35 @@ class Parser(val lexer: Lexer)
         }
     }
 
+    // 解析过程调用的语句，不是过程声明，过程声明的解析在declarations中
+    def procedureCall(): ASTNode = {
 
+        @scala.annotation.tailrec
+        def loop(params: List[ASTNode]): List[ASTNode] = this.currentToken.tokenType match {
+            case TokenType.COMMA =>
+                this.eat(TokenType.COMMA)
+                val param: ASTNode = this.expr()
+                loop(params :+ param)
+            case _ => params
+        }
+
+        // 提取过程名token
+        val token: Token = this.currentToken
+        // 提取过程名
+        val procedureName = token.tokenValue
+        this.eat(TokenType.IDENTIFIER) // 吞掉过程名
+        this.eat(TokenType.LPAREN) // 吞掉过左括号
+
+        var params = List[ASTNode]() 
+        if (this.currentToken.tokenType != TokenType.RPAREN) { // 如果不是右括号，说明有传入参数
+            val param: ASTNode = this.expr() // 解析第一个参数
+            params = params :+ param
+        }
+
+        params = loop(params) // 递归解析可能出现的各个参数表达式
+        this.eat(TokenType.RPAREN) 
+        ProcedureCallNode(procedureName, params, token)
+    }
 
     def parse(): ASTNode = {
         val node = this.program() // 从顶部开始解析，递归向下
@@ -334,4 +365,6 @@ class Parser(val lexer: Lexer)
             case _ => this.parserError(ErrorCode.PARSER_END_ERROR, this.currentToken)
         }
     }
+
+    
 }

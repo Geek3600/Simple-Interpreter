@@ -1,5 +1,6 @@
 package AbstractTree
 import Token._
+import Symbol._
 
 abstract class NodeVisitor
 {
@@ -19,7 +20,7 @@ abstract class NodeVisitor
         //     case true => visitor.invoke(this, node).asInstanceOf[String]
         //     case false => visitor.invoke(this, node).asInstanceOf[Double]
         // }
-        val result = visitor.invoke(this, node).asInstanceOf[String]
+        val result = visitor.invoke(this, node).asInstanceOf[Double]
         result
     }
 }
@@ -71,4 +72,11 @@ class BlockNode(val declarations: List[ASTNode], val compoundStatement: ASTNode)
 class ParameterNode(val varNode: ASTNode, val typeNode: ASTNode) extends ASTNode
 
 // 不确定参数有几个，所以用链表来存储
-class ProcedureDeclarationNode(val name: String, val parameters: List[ASTNode], val block: ASTNode) extends ASTNode
+// 形式参数表示过程声明时的参数
+class ProcedureDeclarationNode(val name: String, val formalParameters: List[ASTNode], val block: ASTNode) extends ASTNode
+
+// 实际参数表示过程调用时，实际传入的参数
+class ProcedureCallNode(val procedureName: String, val actualParameters: List[ASTNode], val token: Token) extends ASTNode
+{
+    var procedureSymbol: ProcedureSymbol = null
+}

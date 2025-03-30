@@ -5,6 +5,7 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import scala.collection.mutable.Map
+import scala.collection.mutable.ListBuffer
 import Lexer._
 import Parser._
 import Token._
@@ -13,231 +14,223 @@ import Symbol._
 import SemanticAnalyzer._
 import SourceToSourceCompiler._
 import Error._
+import CallStack._
 
 
+object InterpreterLog {
+    var isLogEnabled: Boolean = false
+}
 // 解释器
 // 解析抽象语法树
-// class Interpreter extends NodeVisitor
-// {
-//     // 全局变量存储器，存储变量名和他的值
-//     val globalMemory: Map[String, AnyVal] = Map()
+class Interpreter extends NodeVisitor
+{
+    // 全局变量存储器，存储变量名和他的值
+    val callStack: CallStack = CallStack()
 
-//     def divisionZeroError() = {
-//         throw new Exception("Division by zero")
-//     }
+    def divisionZeroError() = {
+        throw new Exception("Division by zero")
+    }
 
-//     def visitBinaryOperationNode(node: ASTNode): AnyVal = {
+    def visitBinaryOperationNode(node: ASTNode): AnyVal = {
         
-//         val newNode = node match {
-//             case bin: BinaryOperationNode => bin
-//             case _ => throw new Exception("Unknown node type")
-//         }
-//         // println(newNode.operator.tokenType)
-//         newNode.operator.tokenType match {
-//             case TokenType.PLUS => this.visit(newNode.left) + this.visit(newNode.right)
-//             case TokenType.SUB => this.visit(newNode.left) - this.visit(newNode.right)
-//             case TokenType.MUL => this.visit(newNode.left) * this.visit(newNode.right)
-//             case TokenType.INTEGER_DIV => this.visit(newNode.left) / this.visit(newNode.right)
-//             case TokenType.FLOAT_DIV => this.visit(newNode.left) / this.visit(newNode.right)
-//             case _ => 0
-//         }
-//     }
+        val newNode = node match {
+            case bin: BinaryOperationNode => bin
+            case _ => throw new Exception("Unknown node type")
+        }
+        newNode.operator.tokenType match {
+            case TokenType.PLUS => this.visit(newNode.left) + this.visit(newNode.right)
+            case TokenType.SUB => this.visit(newNode.left) - this.visit(newNode.right)
+            case TokenType.MUL => this.visit(newNode.left) * this.visit(newNode.right)
+            case TokenType.INTEGER_DIV => this.visit(newNode.left) / this.visit(newNode.right)
+            case TokenType.FLOAT_DIV => this.visit(newNode.left) / this.visit(newNode.right)
+            case _ => 0
+        }
+    }
 
-//     def visitNumberNode(node: ASTNode): AnyVal = {
+    def visitNumberNode(node: ASTNode): AnyVal = {
 
-//         val newNode = node match {
-//             case num: NumberNode => num
-//             case _ => throw new Exception("Unknown node type")
-//         }
-//         newNode.value
-//     }
+        val newNode = node match {
+            case num: NumberNode => num
+            case _ => throw new Exception("Unknown node type")
+        }
+        newNode.value
+    }
 
     
-//     def visitUnaryOperationNode(node: ASTNode): AnyVal = {
+    def visitUnaryOperationNode(node: ASTNode): AnyVal = {
 
-//         val newNode = node match {
-//             case unary: UnaryOperationNode => unary
-//             case _ => throw new Exception("Unknown node type")
-//         }
+        val newNode = node match {
+            case unary: UnaryOperationNode => unary
+            case _ => throw new Exception("Unknown node type")
+        }
 
-//         newNode.operator.tokenType match {
-//             case TokenType.PLUS => this.visit(newNode.right)
-//             case TokenType.SUB  => -this.visit(newNode.right)
-//             case _ => 0
-//         }
-//     }
+        newNode.operator.tokenType match {
+            case TokenType.PLUS => this.visit(newNode.right)
+            case TokenType.SUB  => -this.visit(newNode.right)
+            case _ => 0
+        }
+    }
 
-//     def visitCompoundStatementNode(node: ASTNode): Unit = {
+    def visitCompoundStatementNode(node: ASTNode): Unit = {
         
-//         val newNode = node match {
-//             case compound: CompoundStatementNode => compound
-//             case _ => throw new Exception("Unknown node type")
-//         }
+        val newNode = node match {
+            case compound: CompoundStatementNode => compound
+            case _ => throw new Exception("Unknown node type")
+        }
 
-//         newNode.children.foreach(this.visit(_))
-//     }
+        newNode.children.foreach(this.visit(_))
+    }
 
-//     // 变量赋值，将变量名和值存入符号表中
-//     def visitAssignStatementNode(node: ASTNode): Unit = {
-//         val newNode = node match {
-//             case assign: AssignStatementNode => assign
-//             case _ => throw new Exception("Unknown node type")
-//         }
+    // 变量赋值，将变量名和值存入符号表中
+    def visitAssignStatementNode(node: ASTNode): Unit = {
+        val newNode = node match {
+            case assign: AssignStatementNode => assign
+            case _ => throw new Exception("Unknown node type")
+        }
 
-//         val variableName = newNode.left.asInstanceOf[VariableNode].token.tokenValue // 获取赋值语句左边的变量名
-//         val v = this.visit(newNode.right) // 获取赋值语句右边的值
-//         globalMemory(variableName) = v // 获取赋值语句右边的值，存到符号表中
-//     }
+        val variableName = newNode.left.asInstanceOf[VariableNode].token.tokenValue // 获取赋值语句左边的变量名
+        val variableValue = this.visit(newNode.right) // 获取赋值语句右边的值
 
-//     // 从符号表中查找变量的值
-//     def visitVariableNode(node: ASTNode): AnyVal = {
-//         val newNode = node match {
-//             case variable: VariableNode => variable
-//             case _ => throw new Exception("Unknown node type")
-//         }
+        val activeRecord: ActiveRecord = this.callStack.peek() // 获取当前的活动记录
+        activeRecord.setMember(variableName, variableValue) // 将变量名和值存入活动记录中
+    }
 
-//         val variableName = newNode.token.tokenValue // 获取变量名
-//         globalMemory.get(variableName) match { // 从符号表中查找变量的值
-//             case Some(value) => value
-//             case None => throw new Exception(s"$variableName is an undefined variable")
-//         }
-//     }
+    // 从符号表中查找变量的值
+    def visitVariableNode(node: ASTNode): AnyVal = {
+        val newNode = node match {
+            case variable: VariableNode => variable
+            case _ => throw new Exception("Unknown node type")
+        }
+
+        val variableName = newNode.token.tokenValue // 获取变量名
+
+        val activeRecord: ActiveRecord = this.callStack.peek() // 获取当前的活动记录
+        activeRecord.getMember(variableName) match { // 从符号表中查找变量的值
+            case Some(value) => value
+            case None => throw new Exception(s"$variableName is an undefined variable")
+        }
+    }
     
-//     def visitProgramNode(node: ASTNode): Unit = {
-//         val newNode = node match {
-//             case program: ProgramNode => program
-//             case _ => throw new Exception("Unknown node type")
-//         }
-//         this.visit(newNode.block)
-//     }
+    def visitProgramNode(node: ASTNode): Unit = {
+        val newNode = node match {
+            case program: ProgramNode => program
+            case _ => throw new Exception("Unknown node type")
+        }
 
-//     def visitBlockNode(node: ASTNode): Unit = {
-//         val newNode = node match {
-//             case block: BlockNode => block
-//             case _ => throw new Exception("Unknown node type")
-//         }
-//         newNode.declarations.foreach(this.visit(_))
-//         this.visit(newNode.compoundStatement)
-//     }
+        val programName = newNode.name // 获取程序名
+        this.log(s"ENTER: PROGRAM $programName")
+        val activeRecord = ActiveRecord(programName, ActiveRecordType.PROGRAM, 1)
 
-//     def visitVarDeclarationNode(node: ASTNode): Unit = {
-//         val newNode = node match {
-//             case varDecl: VarDeclarationNode => varDecl
-//             case _ => throw new Exception("Unknown node type")
-//         }
-//     }
+        this.callStack.push(activeRecord)
+        this.log(this.callStack.toString)
 
-//     def visitTypeNode(node: ASTNode): Unit = {
-//         val newNode = node match {
-//             case typeNode: TypeNode => typeNode
-//             case _ => throw new Exception("Unknown node type")
-//         }
-//     }
+        this.visit(newNode.block)
 
-//     def visitEmptyOperationNode(node: ASTNode): Unit = {
-//     }
+        this.log(s"LEAVE: PROGRAM $programName")
+        this.log(this.callStack.toString)
+        this.callStack.pop()
+    }
 
-//     def interprete(rootNode: ASTNode) = {
-//         this.visit(rootNode)
-//     }
-//     def visitProcedureDeclarationNode(node: ASTNode): Unit = {
-//     }
-// }
+    def visitBlockNode(node: ASTNode): Unit = {
+        val newNode = node match {
+            case block: BlockNode => block
+            case _ => throw new Exception("Unknown node type")
+        }
+        newNode.declarations.foreach(this.visit(_))
+        this.visit(newNode.compoundStatement)
+    }
+
+    def visitVarDeclarationNode(node: ASTNode): Unit = {
+        val newNode = node match {
+            case varDecl: VarDeclarationNode => varDecl
+            case _ => throw new Exception("Unknown node type")
+        }
+    }
+
+    def visitTypeNode(node: ASTNode): Unit = {
+        val newNode = node match {
+            case typeNode: TypeNode => typeNode
+            case _ => throw new Exception("Unknown node type")
+        }
+    }
+
+    def visitEmptyOperationNode(node: ASTNode): Unit = {
+    }
+
+
+
+    // 过程声明不需要解释
+    def visitProcedureDeclarationNode(node: ASTNode): Unit = {
+    }
+
+
+    def visitProcedureCallNode(node: ASTNode): Unit = {
+        val procedureCallNode = node match {
+            case procedureCall: ProcedureCallNode => procedureCall
+            case _ => throw new Exception("Unknown node type")
+        }
+
+        val procedureName: String = procedureCallNode.procedureName // 获取过程名
+        val activeRecord = ActiveRecord(procedureName, ActiveRecordType.PROCEDURE, 2) // 过程调用了，要创建活动记录
+
+        val procedureSymbol: ProcedureSymbol = procedureCallNode.procedureSymbol// 获取过程符号
+        // println(procedureSymbol)
+        val formalParams: ListBuffer[Symbol] = procedureSymbol.parameters     // 获取过程声明时的形式参数
+        val actualParams: List[ASTNode] = procedureCallNode.actualParameters  // 获取过程调用时的实际传入的参数，都是一些表示式
+
+        for ((formalParamSymbol, actualParamNode) <- formalParams.zip(actualParams)) {
+            activeRecord.setMember(formalParamSymbol.symbolName, this.visit(actualParamNode)) // 解释传入参数的表达式，将值存入活动记录中
+        }
+
+        this.callStack.push(activeRecord) // 将活动记录压入调用栈
+
+        this.log("ENTER: PROCEDURE %s".format(procedureName))
+        this.log(this.callStack.toString)
+        this.visit(procedureSymbol.blockNode) // 解释过程体
+        this.log("LEAVE: PROCEDURE %s".format(procedureName))
+        this.log(this.callStack.toString)
+        this.callStack.pop()
+    }
+
+    def log(msg: String) = if (InterpreterLog.isLogEnabled) println(msg)
+
+    def interprete(rootNode: ASTNode) = {
+        this.visit(rootNode)
+    }
+
+    
+}
 
 
 object Main {
 
     def main(args: Array[String]): Unit = {
-        // while (true) {
-        //     val line: Try[String] = Try(scala.io.StdIn.readLine("calc> "))
-
-        //     line match {
-        //         case Success(value) => {
-        //             val lexer = new Lexer(value)
-        //             val parser = new Parser(lexer)
-        //             val interpreter = new Interpreter(parser)
-        //             val result = interpreter.interprete()
-        //             println(result)
-        //         }
-        //         case Failure(_) => {
-        //             return
-        //         }
-        //     }
-        // }
-        // val text =  "BEGIN  BEGIN    number := 2;    a := number;    b := 10 * a + 10 * number / 4;    c := a - - b  END;  x := 11;END."
-        // println(text)
-        
-        // val text = "PROGRAM Part10AST;VAR a, b : INTEGER;y    : REAL;BEGIN {Part10AST}a := 2;b := 10 * a + 10 * a DIV 4;y := 20 / 7 + 3.14; END.  {Part10AST}"
-        // val lexer = new Lexer(text)
-        // val parser = new Parser(lexer)
-        // val interpreter = new Interpreter(parser)
-        // interpreter.interprete()
-        // interpreter.globalMemory.foreach {case (key, value) => println(s"$key  $value")}
-
-        // val symTable = new SymbolTable()
-        // val intType = BuiltInTypeSymbol("INTEGER")
-        // val realType = BuiltInTypeSymbol("REAL")
-        
-        // symTable.defineNewSymbol(intType)
-        // symTable.defineNewSymbol(realType)
-        // println(symTable.str())
-
-        // val varXSymbol = VariableSymbol("x", intType)
-        // symTable.defineNewSymbol(varXSymbol)
-        // println(symTable.str())
-
-        // val varYSymbol = VariableSymbol("y", realType)
-        // symTable.defineNewSymbol(varYSymbol)
-        // println(symTable.str())
-
-        // println(intType.str())
-
-        // val realType = BuiltInTypeSymbol("REAL")
-        // println(realType.str())
-
-        // val valSym1 = VariableSymbol("x", intType)
-        // println(valSym1.str())
-
-        // val valSym2 = VariableSymbol("y", realType)
-        // println(valSym2.str())
  //====================
-        val text =  "program Main;var a,b : integer;begin { Main }a := b;  { semantic error }end.  { Main }"
+        InterpreterLog.isLogEnabled = true
+        SemanticAnalyzerLog.isLogEnabled = false
+        SymbolLog.isLogEnabled = false
+
+
+        val text =  "program Main;procedure Alpha(a : integer; b : integer);var x : integer;begin x := (a + b ) * 2;end;begin { Main }Alpha(3 + 5, 7);  { procedure call }end.  { Main }"
         val lexer = Lexer(text)
         val parser = Parser(lexer)
-        // val interpreter = Interpreter()
+        val interpreter = Interpreter()
         val astTree = parser.parse()
         val semanticAnalyzer = SemanticAnalyzer()
         semanticAnalyzer.visit(astTree)
-        // interpreter.interprete(astTree)
+        interpreter.interprete(astTree)
+
         // val sourceToSourceCompiler = SourceToSourceCompiler()
         // sourceToSourceCompiler.visit(astTree, isS2SCompile = true)
         // println(sourceToSourceCompiler.output)
 //=====================
 
-        // val semanticAnalyzer = SemanticAnalyzer()
-        // semanticAnalyzer.visit(astTree)
-        // interpreter.interprete(astTree)
-        // println(symbolBuilder.scopeSymbolTable.str())
-        // interpreter.globalMemory.foreach {case (key, value) => println(s"$key  $value")}
-
-        // val intType = BuiltInTypeSymbol("INTEGER")
-        // val realType = BuiltInTypeSymbol("REAL")
-        // println(intType.toString())
-        // println(realType.toString())
-
-        // val varXSymbol = VariableSymbol("x", intType)
-        // println(varXSymbol.toString())
-
-        // val symTab = new SymbolTable()
-        // val intType = BuiltInTypeSymbol("INTEGER")
-        // val x = VariableSymbol("x", intType)
-        // symTab.defineNewSymbol(intType)
-        // symTab.defineNewSymbol(x)
-        // println(symTab.str())
-
-        // val errorCode = new ErrorCode()
-        // println(errorCode.UNKNOWN_TOKEN)
-        // println(errorCode.ID_NOT_FOUND)
-        // println(errorCode.DUPLICATE_ID)
+        // val stack = CallStack()
+        // val ar = ActiveRecord("Main", ActiveRecordType.PROGRAM, 1)
+        // println(ar)
+        // ar.setMember("y", 7)
+        // println(ar)
+        // stack.push(ar)
+        // println(stack)
     }
 }

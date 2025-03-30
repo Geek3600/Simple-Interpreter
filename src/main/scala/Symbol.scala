@@ -4,6 +4,9 @@ import scala.collection.mutable.Map
 import scala.collection.mutable.ListBuffer
 import AbstractTree._
 
+object SymbolLog {
+    var isLogEnabled: Boolean = false
+}
 // 为何要追踪符号
 // 1. 为了确保将一个值赋值给变量时，类型正确
 // 2. 为了确保变量在使用之前已经被声明
@@ -32,6 +35,9 @@ class VariableSymbol(override val symbolName: String, override val symbolType: S
 }
 
 class ProcedureSymbol(override val symbolName: String, val parameters: ListBuffer[Symbol] = ListBuffer[Symbol]()) extends Symbol(symbolName) {
+    
+    var blockNode: ASTNode = null
+
     def str(): String = {
         val _parameters: String = parameters.map(_.toString()).mkString(", ")
         s"<ProcedureSymbol(name='$symbolName', params='$_parameters')>"
@@ -75,13 +81,13 @@ class ScopedSymbolTable(val scopeName: String, val scopeLevel: Int, val fatherSc
 
     // 定义新的符号，将符号名和符号类存入符号表中
     def defineNewSymbol(symbol: Symbol) = {
-        println("Define new symbol: %s (Scope name: %s)".format(symbol.symbolName, this.scopeName))
+        this.log("Define new symbol: %s (Scope name: %s)".format(symbol.symbolName, this.scopeName))
         this.symbolTable(symbol.symbolName) = symbol
     }
 
     // 根据符号名查找符号表
     def lookupSymbol(symbolName: String, currentScopeOnly: Boolean = false): Symbol = {
-        println("Lookup symbol: %s (Scope name: %s)".format(symbolName, this.scopeName))
+        this.log("Lookup symbol: %s (Scope name: %s)".format(symbolName, this.scopeName))
         this.symbolTable.get(symbolName) match { // 查找当前作用域的符号表
             case Some(symbol) => symbol
             case None => 
@@ -94,5 +100,7 @@ class ScopedSymbolTable(val scopeName: String, val scopeLevel: Int, val fatherSc
                 }
         }
     }
+
+    def log(msg: String) = if (SymbolLog.isLogEnabled) println(msg)
 }
 
