@@ -12,6 +12,7 @@ object SymbolLog {
 // 2. 为了确保变量在使用之前已经被声明
 abstract class Symbol(val symbolName: String, val symbolType: Symbol = null)
 {
+    var scopeLevel: Int = 0
     def str(): String 
 }
 
@@ -34,6 +35,10 @@ class VariableSymbol(override val symbolName: String, override val symbolType: S
     override def toString(): String = str()
 }
 
+// 一个过程符号中包含的内容有：
+// 1. 过程名
+// 2. 过程所有参数符号
+// 3. 过程体节点：用于查找过程体的位置
 class ProcedureSymbol(override val symbolName: String, val parameters: ListBuffer[Symbol] = ListBuffer[Symbol]()) extends Symbol(symbolName) {
     
     var blockNode: ASTNode = null
@@ -82,6 +87,7 @@ class ScopedSymbolTable(val scopeName: String, val scopeLevel: Int, val fatherSc
     // 定义新的符号，将符号名和符号类存入符号表中
     def defineNewSymbol(symbol: Symbol) = {
         this.log("Define new symbol: %s (Scope name: %s)".format(symbol.symbolName, this.scopeName))
+        symbol.scopeLevel = this.scopeLevel
         this.symbolTable(symbol.symbolName) = symbol
     }
 

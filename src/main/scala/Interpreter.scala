@@ -171,9 +171,9 @@ class Interpreter extends NodeVisitor
         }
 
         val procedureName: String = procedureCallNode.procedureName // 获取过程名
-        val activeRecord = ActiveRecord(procedureName, ActiveRecordType.PROCEDURE, 2) // 过程调用了，要创建活动记录
-
-        val procedureSymbol: ProcedureSymbol = procedureCallNode.procedureSymbol// 获取过程符号
+        
+        val procedureSymbol: ProcedureSymbol = procedureCallNode.procedureSymbol// 取出过程符号
+        val activeRecord = ActiveRecord(procedureName, ActiveRecordType.PROCEDURE, procedureSymbol.scopeLevel + 1) // 过程调用了，要创建活动记录
         // println(procedureSymbol)
         val formalParams: ListBuffer[Symbol] = procedureSymbol.parameters     // 获取过程声明时的形式参数
         val actualParams: List[ASTNode] = procedureCallNode.actualParameters  // 获取过程调用时的实际传入的参数，都是一些表示式
@@ -189,7 +189,7 @@ class Interpreter extends NodeVisitor
         this.visit(procedureSymbol.blockNode) // 解释过程体
         this.log("LEAVE: PROCEDURE %s".format(procedureName))
         this.log(this.callStack.toString)
-        this.callStack.pop()
+        this.callStack.pop() // 过程执行完毕，将活动记录出栈
     }
 
     def log(msg: String) = if (InterpreterLog.isLogEnabled) println(msg)
@@ -211,7 +211,7 @@ object Main {
         SymbolLog.isLogEnabled = false
 
 
-        val text =  "program Main;procedure Alpha(a : integer; b : integer);var x : integer;begin x := (a + b ) * 2;end;begin { Main }Alpha(3 + 5, 7);  { procedure call }end.  { Main }"
+        val text =  "program Main;procedure Alpha(a : integer; b : integer);var x : integer;procedure Beta(a : integer; b : integer);var x : integer;begin x := a * 10 + b * 2;end;begin x := (a + b ) * 2;Beta(5, 10);      { procedure call }end;begin { Main }Alpha(3 + 5, 7);  { procedure call }end.  { Main }"
         val lexer = Lexer(text)
         val parser = Parser(lexer)
         val interpreter = Interpreter()

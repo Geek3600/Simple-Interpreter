@@ -49,7 +49,7 @@ class CallStack
 
     // 打印调用栈中的内容
     def str(): String = {
-        this.activeRecordStack.mkString("CallStack:\n", "\n", "")
+        this.activeRecordStack.mkString("\nCallStack:\n", "\n", "")
     }
 
     override def toString() = str()
