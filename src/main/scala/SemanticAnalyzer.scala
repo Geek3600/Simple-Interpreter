@@ -191,7 +191,6 @@ class SemanticAnalyzer extends NodeVisitor
         val procedureSymbol = this.currentScopeSymbolTable.lookupSymbol(procedureCallNode.procedureName) 
         procedureCallNode.procedureSymbol = procedureSymbol.asInstanceOf[ProcedureSymbol]
     }
-
-
+    def visitParameterNode(node: ASTNode) = {}
     def log(msg: String) = if (SemanticAnalyzerLog.isLogEnabled) println(msg)
 }
