@@ -25,19 +25,12 @@ class ASTVisualizer extends NodeVisitor
             case program: ProgramNode => program
             case _ => throw new Exception("Unknown node type")
         }
-
-        // val globalScopeSymbolTable = new ScopedSymbolTable("global", 1, this.currentScopeSymbolTable) // 创建全局符号表
-        // this.currentScopeSymbolTable = globalScopeSymbolTable       // 将当前符号表设置为全局符号表
         val childNode: String = this.visit(programNode.block)
-
         val currentNode: String = this.getNodeName(programNode.getClass.getSimpleName) + s"_${programNode.name}"
-
         ASTree.node(currentNode)
         ASTree.node(childNode)
         ASTree.edge(currentNode, childNode)
         currentNode + s"_${programNode.name}"
-
-        // this.currentScopeSymbolTable = this.currentScopeSymbolTable.fatherScope // 为什么要回退？
     }
 
     def visitBlockNode(node: ASTNode): String = {
@@ -45,20 +38,16 @@ class ASTVisualizer extends NodeVisitor
             case block: BlockNode => block
             case _ => throw new Exception("Unknown node type")
         }
-
         var childNodes1: List[String] = List()
         blockNode.declarations.foreach(node => {
             val childNode: String = this.visit(node)
             childNodes1 = childNodes1 :+ childNode
         })
-
         val currentNode = this.getNodeName(blockNode.getClass.getSimpleName)
-
         childNodes1.foreach(childNode => {
             ASTree.node(childNode)
             ASTree.edge(currentNode, childNode)
         })
-
         val childNode2: String = this.visit(blockNode.compoundStatement)
         ASTree.node(childNode2)
         ASTree.edge(currentNode, childNode2)
@@ -142,24 +131,6 @@ class ASTVisualizer extends NodeVisitor
             case _ => throw new Exception("Unknown node type")
         }
         this.getNodeName(varDeclarationNode.getClass.getSimpleName)
-        // // 提取变量类型名
-        // val varType = varDeclarationNode.typeNode.asInstanceOf[TypeNode].token.tokenValue
-        // // 根据类型名，创建类型符号
-        // val typeSymbol = BuiltInTypeSymbol(varType)
-
-        // // 提取变量名
-        // val varName = varDeclarationNode.varNode.asInstanceOf[VariableNode].token.tokenValue
-        
-        // // 检查变量名是否已经存在，如果存在，则重复定义
-        // this.currentScopeSymbolTable.lookupSymbol(varName, currentScopeOnly = true) match {
-        //     case symbol: Symbol => this.semanticError(ErrorCode.DUPLICATE_ID, varDeclarationNode.varNode.asInstanceOf[VariableNode].token)
-        //     case null => ()
-        // }
-
-        // // 根据变量名和类型符号，创建变量符号
-        // val varSymbol = VariableSymbol(varName, typeSymbol)
-        // // 将变量符号存入符号表中
-        // this.currentScopeSymbolTable.defineNewSymbol(varSymbol)
     }
 
     def visitAssignStatementNode(node: ASTNode): String = {
@@ -189,13 +160,7 @@ class ASTVisualizer extends NodeVisitor
             case variable: VariableNode => variable
             case _ => throw new Exception("Unknown node type")
         }
-        // println(this.getNodeName(variableNode.getClass.getSimpleName) + "\n" + s"${variableNode.token.tokenValue}")
         this.getNodeName(variableNode.getClass.getSimpleName) +  s"_${variableNode.token.tokenValue}"
-        // 从符号表中查找变量，检查其是否存在
-        // this.currentScopeSymbolTable.lookupSymbol(variableNode.token.tokenValue, currentScopeOnly = false) match {
-        //     case symbol: Symbol => ()
-        //     case null => this.semanticError(ErrorCode.ID_NOT_FOUND, variableNode.token)
-        // }
     }
 
 
@@ -225,36 +190,6 @@ class ASTVisualizer extends NodeVisitor
         ASTree.node(currentNode)
         ASTree.edge(currentNode, childString)
         currentNode
-        // 提取过程名
-        // val procedureName = procedureDeclarationNode.name
-
-        // // 创建过程符号
-        // val procedureSymbol = ProcedureSymbol(procedureName)
-        // procedureSymbol.blockNode = procedureDeclarationNode.block // 将过程体节点保存到过程符号中，方便解释器找到过程体
-
-        // // 将过程符号存入符号表中
-        // this.currentScopeSymbolTable.defineNewSymbol(procedureSymbol)
-
-        // val procedureScopeSymbolTable = new ScopedSymbolTable(
-        //     procedureName, 
-        //     this.currentScopeSymbolTable.scopeLevel + 1, 
-        //     this.currentScopeSymbolTable)
-        
-        // // 进入更深一级的scope
-        // this.currentScopeSymbolTable = procedureScopeSymbolTable
-
-        // // 将全部参数节点，提取他们的符号，存入符号表中
-        // for (parameter <- procedureDeclarationNode.formalParameters) {
-        //     val newParam = parameter.asInstanceOf[ParameterNode]
-        //     val paramTypeSymbol = this.currentScopeSymbolTable.lookupSymbol(newParam.typeNode.asInstanceOf[TypeNode].token.tokenValue, currentScopeOnly = false)
-        //     val paramName: String = newParam.varNode.asInstanceOf[VariableNode].token.tokenValue
-        //     val paramSymbol = VariableSymbol(paramName, paramTypeSymbol)
-        //     this.currentScopeSymbolTable.defineNewSymbol(paramSymbol)
-        //     procedureSymbol.addParameter(paramSymbol)
-        // }
-
-        // this.currentScopeSymbolTable = this.currentScopeSymbolTable.fatherScope
-        
     }
 
     def visitProcedureCallNode(node: ASTNode): String = {
@@ -275,9 +210,6 @@ class ASTVisualizer extends NodeVisitor
             ASTree.edge(currentNode, childNode)
         })
         currentNode
-        // // 找出过程中的符号，里面有参数
-        // val procedureSymbol = this.currentScopeSymbolTable.lookupSymbol(procedureCallNode.procedureName) 
-        // procedureCallNode.procedureSymbol = procedureSymbol.asInstanceOf[ProcedureSymbol]
     }
     def visitParameterNode(node: ASTNode): String = {
         val parameterNode = node match {
@@ -287,7 +219,6 @@ class ASTVisualizer extends NodeVisitor
         val currentNode = this.getNodeName(parameterNode.getClass.getSimpleName)
         val childNode1 = this.visit(parameterNode.varNode)
         val childNode2 = this.visit(parameterNode.typeNode)
-        // println()
         ASTree.node(childNode1)
         ASTree.node(childNode2)
         ASTree.node(currentNode)
