@@ -1,28 +1,28 @@
 package Interpreter
 
-import org.xml.sax.ext.LexicalHandler
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
-import scala.collection.mutable.Map
-import scala.collection.mutable.ListBuffer
-import Lexer._
-import Parser._
-import Token._
-import AbstractTree._
-import Symbol._
-import SemanticAnalyzer._
-import SourceToSourceCompiler._
-import Error._
-import CallStack._
-import com.liangdp.graphviz4s.Digraph
-import com.liangdp.graphviz4s.Graph
-import scala.collection.mutable.Map
-import ASTVisualizer._
+// import org.xml.sax.ext.LexicalHandler
+// import scala.util.Try
+// import scala.util.Success
+// import scala.util.Failure
+// import scala.collection.mutable.Map
+// import scala.collection.mutable.ListBuffer
+// import Lexer._
+// import Parser._
+// import Token._
+// import AbstractTree._
+// import Symbol._
+// import SemanticAnalyzer._
+// import SourceToSourceCompiler._
+// import Error._
+// import CallStack._
+// import com.liangdp.graphviz4s.Digraph
+// import com.liangdp.graphviz4s.Graph
+// import scala.collection.mutable.Map
+// import ASTVisualizer._
 
-object InterpreterLog {
-    var isLogEnabled: Boolean = false
-}
+// object InterpreterLog {
+//     var isLogEnabled: Boolean = false
+// }
 // 解释器
 // 解析抽象语法树
 // class Interpreter extends NodeVisitor
@@ -205,31 +205,134 @@ object InterpreterLog {
 // }
 
 
-object Main {
+// object Main {
 
-    def main(args: Array[String]): Unit = {
- //====================
-        InterpreterLog.isLogEnabled = false
-        SemanticAnalyzerLog.isLogEnabled = false
-        SymbolLog.isLogEnabled = false
-        AbstractTreeLog.isLogEnabled = false
+//     def main(args: Array[String]): Unit = {
+//  //====================
+//         InterpreterLog.isLogEnabled = false
+//         SemanticAnalyzerLog.isLogEnabled = false
+//         SymbolLog.isLogEnabled = false
+//         AbstractTreeLog.isLogEnabled = false
 
-        val text =  "program Main;procedure Alpha(a : integer; b : integer);var x : integer;begin x := (a + b ) * 2;end;begin { Main }Alpha(3 + 5, 7);  { procedure call }end.  { Main }"
-        val lexer = Lexer(text)
-        val parser = Parser(lexer)
-        // val interpreter = Interpreter()
-        val astVisualizer = ASTVisualizer()
-        val astTree = parser.parse()
-        // val semanticAnalyzer = SemanticAnalyzer()
-        // semanticAnalyzer.visit(astTree)
-        astVisualizer.view(astTree)
+//         val text =  "program Main;procedure Alpha(a : integer; b : integer);var x : integer;begin x := (a + b ) * 2;end;begin { Main }Alpha(3 + 5, 7);  { procedure call }end.  { Main }"
+//         val lexer = Lexer(text)
+//         val parser = Parser(lexer)
+//         // val interpreter = Interpreter()
+//         val astVisualizer = ASTVisualizer()
+//         val astTree = parser.parse()
+//         // val semanticAnalyzer = SemanticAnalyzer()
+//         // semanticAnalyzer.visit(astTree)
+//         astVisualizer.view(astTree)
 
-        // interpreter.interprete(astTree)
+//         // interpreter.interprete(astTree)
 
-        // val sourceToSourceCompiler = SourceToSourceCompiler()
-        // sourceToSourceCompiler.visit(astTree, isS2SCompile = true)
-        // println(sourceToSourceCompiler.output)
-//=====================
+//         // val sourceToSourceCompiler = SourceToSourceCompiler()
+//         // sourceToSourceCompiler.visit(astTree, isS2SCompile = true)
+//         // println(sourceToSourceCompiler.output)
+// //=====================
       
+//     }
+// }
+
+import org.bytedeco.llvm.LLVM._
+import org.bytedeco.llvm.global.LLVM._
+import java.nio.ByteBuffer
+import org.bytedeco.javacpp.PointerPointer
+object ASTToLLVM {
+  def main(args: Array[String]): Unit = {
+    // 初始化 LLVM
+    LLVMInitializeCore(LLVMGetGlobalPassRegistry())
+    LLVMInitializeNativeTarget()
+    LLVMInitializeNativeAsmPrinter()
+
+    // 创建上下文和模块
+    val context = LLVMContextCreate()
+    val module = LLVMModuleCreateWithNameInContext("myScalaCompiler", context)
+    val builder = LLVMCreateBuilderInContext(context)
+
+    // 示例 AST
+    val ast = Program(List(
+      Function("add", List(Param("a", "i32"), Param("b", "i32")), BinaryOp("+", Var("a"), Var("b")))
+    ))
+
+    // 转换 AST 到 LLVM IR
+    generateIR(ast, module, builder, context)
+
+    // 打印 IR
+    LLVMDumpModule(module)
+
+    // 写入文件（可选）
+    val error: ByteBuffer = null
+    LLVMPrintModuleToFile(module, "output.ll", error)
+
+    // 清理资源
+    LLVMDisposeBuilder(builder)
+    LLVMDisposeModule(module)
+    LLVMContextDispose(context)
+  }
+
+  def generateIR(ast: Program, module: LLVMModuleRef, builder: LLVMBuilderRef, context: LLVMContextRef): Unit = {
+    ast.functions.foreach { func =>
+      // 定义函数参数类型
+      val paramTypes = func.params.map { param =>
+        param.typ match {
+        case "i32" => LLVMInt32TypeInContext(context)
+        case _ => throw new RuntimeException(s"Unsupported type: ${param.typ}")
+      }
+    }.toArray[LLVMTypeRef]
+
+      // 创建函数类型 (i32 (i32, i32))
+      val returnType = LLVMInt32TypeInContext(context)
+      val paramTypesPointer = new PointerPointer(paramTypes*) // 转换为 PointerPointer
+        val funcType = LLVMFunctionType(
+        returnType,           // 返回值类型
+        paramTypesPointer,    // 参数类型指针数组
+        paramTypes.length,    // 参数数量
+        0                     // 非可变参数函数
+    )
+
+      // 创建函数
+      val llvmFunc = LLVMAddFunction(module, func.name, funcType)
+
+      // 创建基本块
+      val entryBlock = LLVMAppendBasicBlockInContext(context, llvmFunc, "entry")
+      LLVMPositionBuilderAtEnd(builder, entryBlock)
+
+      // 获取参数
+      val paramsMap = func.params.zipWithIndex.map { case (param, i) =>
+        val llvmParam = LLVMGetParam(llvmFunc, i)
+        LLVMSetValueName2(llvmParam, param.name, param.name.length.toLong)
+        param.name -> llvmParam
+      }.toMap
+
+      // 生成函数体
+      val result = generateExpr(func.body, paramsMap, builder, context)
+
+      // 返回结果
+      LLVMBuildRet(builder, result)
     }
+  }
+
+  def generateExpr(expr: Expr, params: Map[String, LLVMValueRef], builder: LLVMBuilderRef, context: LLVMContextRef): LLVMValueRef = expr match {
+    case Var(name) =>
+      params.getOrElse(name, throw new RuntimeException(s"Unknown variable: $name"))
+    case Const(value) =>
+      LLVMConstInt(LLVMInt32TypeInContext(context), value, 0)
+    case BinaryOp("+", left, right) =>
+      val leftVal = generateExpr(left, params, builder, context)
+      val rightVal = generateExpr(right, params, builder, context)
+      LLVMBuildAdd(builder, leftVal, rightVal, "addtmp")
+    case _ =>
+      throw new RuntimeException("Unsupported expression")
+  }
 }
+
+// AST 定义
+sealed trait AST
+case class Program(functions: List[Function]) extends AST
+case class Function(name: String, params: List[Param], body: Expr) extends AST
+case class Param(name: String, typ: String) extends AST
+case class BinaryOp(op: String, left: Expr, right: Expr) extends AST
+case class Var(name: String) extends AST
+case class Const(value: Int) extends AST
+type Expr = AST
